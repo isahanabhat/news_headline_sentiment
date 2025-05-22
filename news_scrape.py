@@ -61,10 +61,27 @@ def site_crawler(news_code, start_date, to_date, data_frame, sitemap_root, verbo
 			print("step2 ", t3 - t2)
 			print("step3 ", t4 - t3)
 
+			print(test_link)
+			print("----------------------")
+
+		if news_code == "cnbc":
+			if soup_data.find('meta').get('content') == "website":
+				continue
+
+		if news_code == "bb":
+			tag_data = soup_data.find_all('meta')
+			flag = False
+			for t in tag_data:
+				if t.get('content') == "games":
+					flag = True
+					break
+			if flag:
+				continue
+
 		# row change here
 		row = {'code': news_code,
 			  'headline': soup_data.find('title').text,
-		   # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
+		    # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
 			  'last_extracted': datetime.today().strftime('%d-%m-%Y %H:%M:%S'),
 			  'last_modified': child.find(tags[0] + "lastmod").text,
 			  'url': test_link
@@ -111,10 +128,12 @@ ap_2025_03 = r'https://apnews.com/ap-sitemap-202503.xml'
 re_2025_05_18 = r'https://www.reuters.com/arc/outboundfeeds/sitemap2/2025-05-18/?outputType=xml'  # doesnt work
 wsj_2025_05 = r'https://www.wsj.com/sitemaps/web/wsj/en/sitemap_wsj_en_m5_2025.xml' 			  # doesnt work
 cnbc_url = r'https://www.cnbc.com/CNBCsitemapAll12.xml'
+bb_2025_05 = r"https://www.bloomberg.com/sitemaps/news/2025-5.xml"
 
-codes = ['apnews', 'reuters', 'wsj', 'cnbc']
+
+codes = ['apnews', 'reuters', 'wsj', 'cnbc', 'bb']
 
 file_data = read_file_data(filename) # read existing data
-sitemap_data = site_data_retriever(ap_2025_03) # scrape news sitemap data
-new_news_data = site_crawler(codes[0], 0, 0, file_data, sitemap_data, True) # get news data that isnt in news file
+sitemap_data = site_data_retriever(bb_2025_05) # scrape news sitemap data
+new_news_data = site_crawler(codes[4], 0, 0, file_data, sitemap_data) # get news data that isnt in news file
 save_to_file(new_news_data, file_data, filename) # save data
