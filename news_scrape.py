@@ -48,6 +48,19 @@ class NewsScraper:
 		soup_data = BeautifulSoup(article_data.content, 'html.parser')
 		return soup_data
 
+	def date_check_bb(self, date):
+		date = datetime.strptime(date, "%Y-%m-%d")
+		month_url = []
+		for child in self.root:
+			element_link = re.split(r'}sitemap', child.tag)[0] + "}loc"
+			element_date = re.split(r'}sitemap', child.tag)[0] + "}lastmod"
+			link_date = datetime.strptime(child.find(element_date).text, "%Y-%m-%d")
+			if date < link_date:
+				month_url.append(child.find(element_link).text)
+			else:
+				break
+		return month_url
+
 	def cnbc_check(self, soup_data):
 		if soup_data.find('meta').get('content') != "article":
 			return False
@@ -64,7 +77,7 @@ class NewsScraper:
 		i = 0
 		j = 0
 		t0 = time.time()
-
+		months = self.date_check_bb(self.start_date)
 		for child in self.root:
 			print("i = ",i)
 			tags = re.split(r'url', child.tag)
