@@ -80,7 +80,7 @@ class NewsScraper:
 					month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
 					break
 				month_url.append(base_url_ap + str(cur_year) + '0'+ str(cur_month) + '.xml')
-				print(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
+				# print(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
 				cur_month = ((cur_month - 1) % 12)
 				if cur_month == 0:
 					cur_month = 12
@@ -106,7 +106,7 @@ class NewsScraper:
 		t0 = time.time()
 		# months = self.date_check_bb(self.start_date)
 		for month in self.month_url:
-			print("month = ", month)
+			# print("month = ", month)
 
 			month_data = self.session.get(month, headers=self.HEADERS)
 			# time.sleep(3)
@@ -129,7 +129,9 @@ class NewsScraper:
 				t4 = time.time()
 
 				if self.sitemap_code == 'apnews':
-					
+					# print(soup_data.find('html').get('class'))
+					if soup_data.find('html').get('class') in [['AuthorPage'], ['TagPage'], ['StoryPage'], ['Page']]:
+						continue
 
 				if self.sitemap_code == 'cnbc':
 					if not self.cnbc_check(soup_data):
@@ -144,7 +146,8 @@ class NewsScraper:
 					   # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
 					   'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
 					   'last_modified': child.find(tags[0] + "lastmod").text,
-					   'url': test_link
+					   'url': test_link,
+					   'type': soup_data.find('html').get('class')
 					   }
 
 				if len(self.saved_data) != 0:
@@ -157,7 +160,7 @@ class NewsScraper:
 						continue
 
 				self.rowlist[test_link] = row
-				print(row['headline'], row['last_modified'])
+				# print(row['headline'], row['last_modified'])
 				j += 1
 				if j % 10 == 0:
 					time.sleep(1)
@@ -167,10 +170,10 @@ class NewsScraper:
 
 				if i == self.article_count:
 					break
-				if per_month == 3:
-					print("here")
+				if per_month == 90:
+					# print("here")
 					break
-			print("this month done")
+			print()
 
 		t10 = time.time()
 		# avg_time_per_step = round((t10 - t0) / i, 4)
