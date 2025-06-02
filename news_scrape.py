@@ -38,36 +38,30 @@ class NewsScraper:
 			'Pragma': 'no-cache'
 		}
 		# create session
-		self.session = requests.session()
+		self.session_counter = 0
+		self.session = self.__session_creator__()
 
-		data = self.session.get(sitemap_url, headers=self.HEADERS)
-		input = (data.content).decode("utf-8")
-		data_tree = ET.ElementTree(ET.fromstring(input))
-		self.root = data_tree.getroot() # root node of sitemap index xml tree
+		self.root = self.__inital_sitemap__(sitemap_url) # root node of sitemap index xml tree
 
 		# dictionary for new rows
 		self.rowlist = {}
 
-		self.month_url = self.date_check_bb(self.start_date, self.sitemap_code) # bloomberg
+		self.month_url = self.__date_check_ap__(self.start_date, self.sitemap_code) # bloomberg
 
-	def site_crawler(self, article_url):
-		article_data = self.session.get(article_url, headers=self.HEADERS)
-		t3 = time.time()
-		soup_data = BeautifulSoup(article_data.content, 'html.parser')
-		return soup_data
+	def __session_creator__(self):
+		return requests.session()
 
-	def date_check_bb(self, date, site_code):
-		# date = datetime.strptime(date, "%Y-%m-%d")
+	def __inital_sitemap__(self, sitemap_url):
+		data = self.session.get(sitemap_url, headers=self.HEADERS)
+		self.session_counter += 1
+		input = (data.content).decode("utf-8")
+		data_tree = ET.ElementTree(ET.fromstring(input))
+		return data_tree.getroot()  # root node of sitemap index xml tree
+
+	def __date_check_ap__(self, date, site_code):
 		date = parser.parse(date)
 		month_url = []
-		"""for child in self.root:
-			element_link = re.split(r'}sitemap', child.tag)[0] + "}loc"
-			element_date = re.split(r'}sitemap', child.tag)[0] + "}lastmod"
-			link_date = parser.parse(child.find(element_date).text)
-			if date < link_date:
-				month_url.append(child.find(element_link).text)
-			else:
-				break"""
+
 		year_boundary = date.year
 		month_boundary = date.month
 		day_boundary = date.day
@@ -76,47 +70,65 @@ class NewsScraper:
 		base_url_ap = 'https://apnews.com/ap-sitemap-'
 		if site_code == 'apnews':
 			while True:
-				if year_boundary == cur_year and day_boundary == cur_month:
-					month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
+				if year_boundary == cur_year and month_boundary == cur_month:
+					if len(str(cur_month)) == 2:
+						month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
+					else:
+						month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
 					break
-				month_url.append(base_url_ap + str(cur_year) + '0'+ str(cur_month) + '.xml')
+
+				if len(str(cur_month)) == 2:
+					month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
+				else:
+					month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
 				# print(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
 				cur_month = ((cur_month - 1) % 12)
 				if cur_month == 0:
 					cur_month = 12
 					cur_year -= 1
-		print(month_url)
+		# print(month_url)
 		return month_url
+	
 
-	def cnbc_check(self, soup_data):
+	def __site_crawler__(self, article_url):
+		article_data = self.session.get(article_url, headers=self.HEADERS)
+		self.session_counter += 1
+		t3 = time.time()
+		soup_data = BeautifulSoup(article_data.content, 'html.parser')
+		return soup_data
+
+	def __cnbc_check__(self, soup_data):
 		if soup_data.find('meta').get('content') != "article":
 			return False
 		return True
 
-	def bloomberg_check(self, soup_data):
+	def __bloomberg_check__(self, soup_data):
 		tag_data = soup_data.find_all('meta')
 		for t in tag_data:
 			if t.get('content') == "games":
 				return False
 		return True
 
-	def get_data(self):
+	def __url_get__(self):
 		i = 0
 		j = 0
 		t0 = time.time()
 		# months = self.date_check_bb(self.start_date)
 		for month in self.month_url:
-			# print("month = ", month)
+			print("month = ", month)
 
-			month_data = self.session.get(month, headers=self.HEADERS)
+			"""month_data = self.session.get(month, headers=self.HEADERS)
 			# time.sleep(3)
 			input = (month_data.content).decode("utf-8")
 			data_tree = ET.ElementTree(ET.fromstring(input))
-			month_root = data_tree.getroot()
+			month_root = data_tree.getroot()"""
+
+			month_root = self.__inital_sitemap__(month)
+
 			per_month = 0
 			for child in month_root:
 
-				print("i = ",i)
+				# print("i = ",i)
 				tags = re.split(r'url', child.tag)
 				element = tags[0] + "loc"
 				t1 = time.time()
@@ -124,7 +136,7 @@ class NewsScraper:
 				test_link = child.find(element).text
 				t2 = time.time()
 
-				soup_data = self.site_crawler(test_link)
+				"""soup_data = self.__site_crawler__(test_link)
 				# time.sleep(3)
 				t4 = time.time()
 
@@ -134,46 +146,58 @@ class NewsScraper:
 						continue
 
 				if self.sitemap_code == 'cnbc':
-					if not self.cnbc_check(soup_data):
+					if not self.__cnbc_check__(soup_data):
 						continue
 				if self.sitemap_code == 'bb':
-					if not self.bloomberg_check(soup_data):
+					if not self.__bloomberg_check__(soup_data):
 						continue
-
+				
 				# row change here
-				row = {'code': self.sitemap_code,
-					   'headline': soup_data.find('title').text,
-					   # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
-					   'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-					   'last_modified': child.find(tags[0] + "lastmod").text,
-					   'url': test_link,
-					   'type': soup_data.find('html').get('class')
-					   }
+				row = {
+					'code': self.sitemap_code,
+					# 'headline': soup_data.find('title').text,
+					'headline': "",
+				    # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
+				    'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+				    'last_modified': child.find(tags[0] + "lastmod").text,
+				    'url': test_link
+				    # 'type': soup_data.find('html').get('class')
+					}
+				"""
+
+				row = {
+					'code': self.sitemap_code,
+					'headline': "",
+					'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+					'last_modified': child.find(tags[0] + "lastmod").text,
+					'url': test_link
+				}
 
 				if len(self.saved_data) != 0:
 					rows_dict = list(self.saved_data.values())
-					head_list = [i['headline'] for i in rows_dict]
-					if row['headline'] in head_list:  # change here
-						j += 1
+					# head_list = [i['headline'] for i in rows_dict]
+					url_list = [i['url'] for i in rows_dict]
+					# if row['headline'] in head_list:  # change here
+					if row['url'] in url_list:  # change here
+						"""j += 1
 						if j % 10 == 0:
-							time.sleep(1)
+							time.sleep(1)"""
 						continue
 
 				self.rowlist[test_link] = row
 				# print(row['headline'], row['last_modified'])
-				j += 1
+				"""j += 1
 				if j % 10 == 0:
-					time.sleep(1)
+					time.sleep(1)"""
 
 				i += 1
 				per_month += 1
 
-				if i == self.article_count:
+				"""if i == self.article_count:
 					break
 				if per_month == 90:
 					# print("here")
-					break
-			print()
+					break"""
 
 		t10 = time.time()
 		# avg_time_per_step = round((t10 - t0) / i, 4)
