@@ -16,9 +16,9 @@ parser = argparse.ArgumentParser(
 	epilog='Goodnight and good luck :)'
 )
 
-parser.add_argument('-ds', '--datestore', type=str, help='Start date of crawl', action='store')
-parser.add_argument('-ws', '--website', type=str, help='News website code to crawl', action='store')
-
+parser.add_argument('-ds', type=str, help='Start date of crawl')
+parser.add_argument('-ws', type=str, help='News website code to crawl')
+parser.add_argument('-dl', type=int, help='Download N number of articles')
 args = parser.parse_args()
 
 # scrape_obj = news_scrape.NewsScraper(filename, ap_sitemap, 'apnews', "2024-01-01", 450)
@@ -28,5 +28,15 @@ DATA_PATH = r"C:\Users\bhats\SAHANABHAT\projects_data"
 filename = os.path.join(DATA_PATH, file)
 ap_sitemap = r"https://apnews.com/ap-sitemap.xml"
 
-scrape_obj = news_scrape.NewsScraper(filename, ap_sitemap, args.website, args.datestore, 450)
-scrape_obj.__url_get__()
+
+if args.ws is None:
+    print("-ws mandatory")
+    parser.print_help()
+    exit()
+
+scrape_obj = news_scrape.NewsScraper(filename, ap_sitemap, args.ws, 450)
+
+if args.ds:
+    scrape_obj.__url_get__(args.ds)
+elif args.dl:
+    scrape_obj.__download_headline__(args.dl)
