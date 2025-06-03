@@ -34,9 +34,9 @@ if args.ws is None:
     parser.print_help()
     exit()
 
-scrape_obj = news_scrape.NewsScraper(filename, ap_sitemap, args.ws, 450)
+scrape_obj = news_scrape.NewsScraper(args.ws)
 
 if args.ds:
-    scrape_obj.__url_get__(args.ds)
+    scrape_obj.url_getall(args.ds)
 elif args.dl:
-    scrape_obj.__download_headline__(args.dl)
+    scrape_obj.download_headlines(args.dl)

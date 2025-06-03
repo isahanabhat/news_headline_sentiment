@@ -15,18 +15,19 @@ from dateutil import parser
 
 
 class NewsScraper:
-    def __init__(self, filepath, sitemap_url, sitemap_code, article_count):
+    def __init__(self, sitemap_code):
+        file = r"news_data.csv"
+        DATA_PATH = r"C:\Users\bhats\SAHANABHAT\projects_data"
+        self.filepath = os.path.join(DATA_PATH, file)
+
         self.sitemap_code = sitemap_code
-        # self.start_date = start_date
-        self.article_count = article_count
-        self.filepath = filepath
 
         print("Running...")
 
         # reading existing data from csv
         self.saved_data = {}
         if os.path.exists(self.filepath):
-            file_data = pd.read_csv(filepath)
+            file_data = pd.read_csv(self.filepath)
             file_data["url_index"] = file_data["url"]
             self.saved_data = file_data.set_index('url_index').to_dict('index')
 
@@ -46,8 +47,6 @@ class NewsScraper:
 
         # dictionary for new rows
         self.rowlist = {}
-
-
 
     def __session_creator__(self):
         if self.session_counter >= 50:
@@ -118,7 +117,7 @@ class NewsScraper:
                 return False
         return True
 
-    def __url_get__(self, start_date):
+    def url_getall(self, start_date):
         i = 0
         j = 0
         per_month = 0
@@ -130,13 +129,6 @@ class NewsScraper:
         # months = self.date_check_bb(self.start_date)
         for month in month_url:
             print("month = ", month)
-
-            """month_data = self.session.get(month, headers=self.HEADERS)
-            # time.sleep(3)
-            input = (month_data.content).decode("utf-8")
-            data_tree = ET.ElementTree(ET.fromstring(input))
-            month_root = data_tree.getroot()"""
-
             month_root = self.__inital_sitemap__(month)
             print(len(month_root))
 
@@ -179,8 +171,6 @@ class NewsScraper:
                     }
                 """
 
-
-
                 if len(self.saved_data) != 0:
                     if test_link in self.saved_data.keys():  # change here
                         # print(per_month, ' yes')
@@ -201,13 +191,12 @@ class NewsScraper:
                 # print(per_month, ' no')
                 per_month += 1
 
-
         t10 = time.time()
         new_rows = pd.DataFrame(self.rowlist.values())
         news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True).sort_values(by='last_modified', ascending=False)
         news_data.to_csv(self.filepath, index=False)
 
-    def __download_headline__(self, headline_count):
+    def download_headlines(self, headline_count):
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
