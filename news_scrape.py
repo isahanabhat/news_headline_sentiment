@@ -121,8 +121,12 @@ class NewsScraper:
     def __url_get__(self, start_date):
         i = 0
         j = 0
+        per_month = 0
         t0 = time.time()
         month_url = self.__date_check_ap__(start_date, self.sitemap_code)
+
+        # rows_dict = list(self.saved_data.values())
+        # url_list = [i['url'] for i in rows_dict]
         # months = self.date_check_bb(self.start_date)
         for month in month_url:
             print("month = ", month)
@@ -134,8 +138,8 @@ class NewsScraper:
             month_root = data_tree.getroot()"""
 
             month_root = self.__inital_sitemap__(month)
+            print(len(month_root))
 
-            per_month = 0
             for child in month_root:
 
                 # print("i = ",i)
@@ -175,6 +179,13 @@ class NewsScraper:
                     }
                 """
 
+
+
+                if len(self.saved_data) != 0:
+                    if test_link in self.saved_data.keys():  # change here
+                        # print(per_month, ' yes')
+                        per_month += 1
+                        continue
                 row = {
                     'code': self.sitemap_code,
                     'headline': numpy.nan,
@@ -183,37 +194,17 @@ class NewsScraper:
                     'url': test_link
                 }
 
-                if len(self.saved_data) != 0:
-                    rows_dict = list(self.saved_data.values())
-                    # head_list = [i['headline'] for i in rows_dict]
-                    url_list = [i['url'] for i in rows_dict]
-                    # if row['headline'] in head_list:  # change here
-                    if row['url'] in url_list:  # change here
-                        """j += 1
-                        if j % 10 == 0:
-                            time.sleep(1)"""
-                        continue
-
                 self.rowlist[test_link] = row
                 # print(row['headline'], row['last_modified'])
-                """j += 1
-                if j % 10 == 0:
-                    time.sleep(1)"""
 
                 i += 1
+                # print(per_month, ' no')
                 per_month += 1
 
-                """if i == self.article_count:
-                    break
-                if per_month == 90:
-                    # print("here")
-                    break"""
 
         t10 = time.time()
         new_rows = pd.DataFrame(self.rowlist.values())
-        news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True)
-
-        print(news_data)
+        news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True).sort_values(by='last_modified', ascending=False)
         news_data.to_csv(self.filepath, index=False)
 
     def __download_headline__(self, headline_count):
