@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import datetime
 import time
 import numpy
+import json
 
 from dateutil import parser
 
@@ -17,7 +18,7 @@ from dateutil import parser
 class NewsScraper:
     def __init__(self, sitemap_code):
         file = r"news_data.csv"
-        DATA_PATH = r"C:\Users\bhats\SAHANABHAT\projects_data"
+        DATA_PATH = os.getenv('DATA_HOME')
         self.filepath = os.path.join(DATA_PATH, file)
 
         self.sitemap_code = sitemap_code
@@ -33,7 +34,8 @@ class NewsScraper:
 
         # retrieve sitemap data
         self.HEADERS = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
             'referrer': 'https://google.com',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             # 'Accept-Encoding': 'gzip, deflate, br',
@@ -42,7 +44,6 @@ class NewsScraper:
         }
         # create session
         self.session_counter = 0
-        # self.session = self.__session_creator__()
         self.session = None
 
         # dictionary for new rows
@@ -68,7 +69,7 @@ class NewsScraper:
         data_tree = ET.ElementTree(ET.fromstring(input))
         return data_tree.getroot()  # root node of sitemap index xml tree
 
-    def __date_check_ap__(self, date, site_code):
+    def __retrieve_months_ap__(self, date):
         date = parser.parse(date)
         month_url = []
 
@@ -78,146 +79,103 @@ class NewsScraper:
         cur_year = datetime.now().year
         cur_month = datetime.now().month
         base_url_ap = 'https://apnews.com/ap-sitemap-'
-        if site_code == 'apnews':
-            while True:
-                if year_boundary == cur_year and month_boundary == cur_month:
-                    if len(str(cur_month)) == 2:
-                        month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
-                    else:
-                        month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
-                    break
-
+        while True:
+            if year_boundary == cur_year and month_boundary == cur_month:
                 if len(str(cur_month)) == 2:
                     month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
                 else:
                     month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
-                # print(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
-                cur_month = ((cur_month - 1) % 12)
-                if cur_month == 0:
-                    cur_month = 12
-                    cur_year -= 1
-        # print(month_url)
+                break
+
+            if len(str(cur_month)) == 2:
+                month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
+            else:
+                month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
+            cur_month = ((cur_month - 1) % 12)
+            if cur_month == 0:
+                cur_month = 12
+                cur_year -= 1
         return month_url
 
-    def __site_crawler__(self, article_url):
+    def __beautiful_soup_from_site__(self, article_url):
         article_data = self.__http_get__(article_url)
         t3 = time.time()
         soup_data = BeautifulSoup(article_data, 'html.parser')
         return soup_data
 
-    def __cnbc_check__(self, soup_data):
-        if soup_data.find('meta').get('content') != "article":
-            return False
-        return True
-
-    def __bloomberg_check__(self, soup_data):
-        tag_data = soup_data.find_all('meta')
-        for t in tag_data:
-            if t.get('content') == "games":
-                return False
-        return True
 
     def url_getall(self, start_date):
         i = 0
-        j = 0
-        per_month = 0
         t0 = time.time()
-        month_url = self.__date_check_ap__(start_date, self.sitemap_code)
-
-        # rows_dict = list(self.saved_data.values())
-        # url_list = [i['url'] for i in rows_dict]
-        # months = self.date_check_bb(self.start_date)
+        month_url = self.__retrieve_months_ap__(start_date)
         for month in month_url:
             print("month = ", month)
             month_root = self.__inital_sitemap__(month)
-            print(len(month_root))
 
             for child in month_root:
-
-                # print("i = ",i)
                 tags = re.split(r'url', child.tag)
                 element = tags[0] + "loc"
                 t1 = time.time()
 
-                test_link = child.find(element).text
+                retrieved_url = child.find(element).text
                 t2 = time.time()
 
-                """soup_data = self.__site_crawler__(test_link)
-                # time.sleep(3)
-                t4 = time.time()
-    
-                if self.sitemap_code == 'apnews':
-                    # print(soup_data.find('html').get('class'))
-                    if soup_data.find('html').get('class') in [['AuthorPage'], ['TagPage'], ['StoryPage'], ['Page']]:
-                        continue
-    
-                if self.sitemap_code == 'cnbc':
-                    if not self.__cnbc_check__(soup_data):
-                        continue
-                if self.sitemap_code == 'bb':
-                    if not self.__bloomberg_check__(soup_data):
-                        continue
-                
-                # row change here
-                row = {
-                    'code': self.sitemap_code,
-                    # 'headline': soup_data.find('title').text,
-                    'headline': "",
-                    # 'date_published': soup_data.find('template', attr={'data-date-tpl': True}),
-                    'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-                    'last_modified': child.find(tags[0] + "lastmod").text,
-                    'url': test_link
-                    # 'type': soup_data.find('html').get('class')
-                    }
-                """
-
                 if len(self.saved_data) != 0:
-                    if test_link in self.saved_data.keys():  # change here
-                        # print(per_month, ' yes')
-                        per_month += 1
+                    if retrieved_url in self.saved_data.keys():  # change here
+                        i += 1
                         continue
                 row = {
                     'code': self.sitemap_code,
                     'headline': numpy.nan,
                     'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                     'last_modified': child.find(tags[0] + "lastmod").text,
-                    'url': test_link
+                    'url': retrieved_url
                 }
 
-                self.rowlist[test_link] = row
-                # print(row['headline'], row['last_modified'])
-
+                self.rowlist[retrieved_url] = row
                 i += 1
-                # print(per_month, ' no')
-                per_month += 1
 
         t10 = time.time()
         new_rows = pd.DataFrame(self.rowlist.values())
         news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True).sort_values(by='last_modified', ascending=False)
         news_data.to_csv(self.filepath, index=False)
 
+    def __retrieve_json_headline__(self, soup_data):
+        json_str = soup_data.find('script', {'id': 'link-ld-json'}).text[1:-1]
+        json_data = json.loads(json_str)
+        return json_data['headline']
+
     def download_headlines(self, headline_count):
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
+
         news_file = news_file.sort_values(by='headline', na_position='last')
-        news_file_unprocessed = news_file[news_file['headline'].isna()]
-        news_file_processed = news_file[~news_file['headline'].isna()]
-        print(news_file.shape, news_file_processed.shape, news_file_unprocessed.shape)
+        news_file_unprocessed = news_file.loc[news_file['headline'].isna()]
+        news_file_processed = news_file.loc[~news_file['headline'].isna()]
+
+        unprocessed_ap = news_file_unprocessed.loc[news_file['code'] == self.sitemap_code]
+        unprocessed_remaining = news_file_unprocessed.loc[news_file['code'] != self.sitemap_code]
+
         n_downloaded = 0
-        for row in news_file_unprocessed.itertuples():
+        for row in unprocessed_ap.itertuples():
             if n_downloaded % 10 == 0:
                 print("%d/%d" %(n_downloaded, headline_count))
-            soup_data = self.__site_crawler__(row.url)
-            news_file_unprocessed.loc[row.Index, "headline"] = soup_data.find('title').text
+            headline = ''
+            try:
+                soup_data = self.__beautiful_soup_from_site__(row.url)
+                headline = self.__retrieve_json_headline__(soup_data)
+            except Exception as e:
+                headline = soup_data.find('title').text
+
+            unprocessed_ap.loc[row.Index, "headline"] = headline
             n_downloaded += 1
             if n_downloaded == headline_count:
                 break
+        news_file_unprocessed =pd.concat([unprocessed_ap, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
         news_file.to_csv(self.filepath, index=False)
-
-
-    # print(news_file)
+        return
 
 
 if __name__ == '__main__':

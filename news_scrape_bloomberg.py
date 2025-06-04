@@ -13,7 +13,6 @@ from dateutil import parser
 from lxml.html import fromstring
 
 from news_headline_sentiment import news_scrape
-from tensorflow.python.autograph.core.unsupported_features_checker import verify
 
 
 class NewsScrapeBloomberg(news_scrape.NewsScraper):
@@ -21,6 +20,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         bb_sitemap = 'https://www.bloomberg.com/sitemaps/news/index.xml'
         print("News Scraper (Bloomberg)")
         news_scrape.NewsScraper.__init__(self, 'bb')
+        self.proxy_list = self.get_proxies()
 
     def get_proxies(self):
         url = 'https://free-proxy-list.net/anonymous-proxy.html'
@@ -34,16 +34,38 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 proxies.add(proxy)
         return proxies
 
-    def __inital_sitemap__(self, sitemap_url, proxy_list):
-        data = self.__http_get__(sitemap_url, proxy_list)
-        input = (data).decode("utf-8")
-        data_tree = ET.ElementTree(ET.fromstring(input))
-        return data_tree.getroot()  # root node of sitemap index xml tree
+    def __bloomberg_check__(self, soup_data):
+        tag_data = soup_data.find_all('meta')
+        for t in tag_data:
+            if t.get('content') == "games":
+                return False
+        return True
 
-    def __http_get__(self, url, proxy_list):
+    def __retrieve_months_bb__(self, date):
+        date = parser.parse(date)
+        month_url = []
+
+        year_boundary = date.year
+        month_boundary = date.month
+        day_boundary = date.day
+        cur_year = datetime.now().year
+        cur_month = datetime.now().month
+        base_url_bb = 'https://www.bloomberg.com/sitemaps/news/'
+        while True:
+            if year_boundary == cur_year and month_boundary == cur_month:
+                month_url.append(base_url_bb + str(cur_year) + '-' + str(cur_month) + '.xml')
+                break
+            month_url.append(base_url_bb + str(cur_year) + '-' + str(cur_month) + '.xml')
+            cur_month = ((cur_month - 1) % 12)
+            if cur_month == 0:
+                cur_month = 12
+                cur_year -= 1
+        return month_url
+
+    def __http_get__(self, url):
         self.__session_creator__()
-        print("proxy count = ", len(proxy_list))
-        for proxy in proxy_list:
+        print("proxy count = ", len(self.proxy_list))
+        for proxy in self.proxy_list:
             proxies = {
                 'http': proxy,
                 'https': proxy,
@@ -61,31 +83,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 print("Failed for page:", url, " with proxy ", proxy)
         print("Ran out of proxies")
 
-
-    def __date_check_bb__(self, date, site_code):
-        date = parser.parse(date)
-        month_url = []
-
-        year_boundary = date.year
-        month_boundary = date.month
-        day_boundary = date.day
-        cur_year = datetime.now().year
-        cur_month = datetime.now().month
-        base_url_bb = 'https://www.bloomberg.com/sitemaps/news/'
-        while True:
-            if year_boundary == cur_year and month_boundary == cur_month:
-                month_url.append(base_url_bb + str(cur_year) + '-' +str(cur_month) + '.xml')
-                break
-            month_url.append(base_url_bb + str(cur_year) + '-' +str(cur_month) + '.xml')
-            cur_month = ((cur_month - 1) % 12)
-            if cur_month == 0:
-                cur_month = 12
-                cur_year -= 1
-        # print(month_url)
-        return month_url
-
-    def __site_crawler__(self, article_url, proxies):
-        print(article_url)
+    def __beautiful_soup_from_site__(self, article_url, proxies):
         article_data = self.__http_get__(article_url, proxies)
         t3 = time.time()
         soup_data = BeautifulSoup(article_data, 'html.parser')
@@ -93,46 +91,34 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
 
     def url_getall(self, start_date):
         i = 0
-        j = 0
-        per_month = 0
         t0 = time.time()
-        month_url = self.__date_check_bb__(start_date, 'bb')
-
-        proxy_list = self.get_proxies()
-
+        month_url = self.__retrieve_months_bb__(start_date)
         for month in month_url:
             print("month = ", month)
-            month_root = self.__inital_sitemap__(month, proxy_list)
-            print(len(month_root))
+            month_root = self.__inital_sitemap__(month)
 
             for child in month_root:
-
-                # print("i = ",i)
                 tags = re.split(r'url', child.tag)
                 element = tags[0] + "loc"
                 t1 = time.time()
 
-                test_link = child.find(element).text
+                retrieved_url = child.find(element).text
                 t2 = time.time()
 
                 if len(self.saved_data) != 0:
-                    if test_link in self.saved_data.keys():  # change here
-                        # print(per_month, ' yes')
-                        per_month += 1
+                    if retrieved_url in self.saved_data.keys():  # change here
+                        i += 1
                         continue
                 row = {
                     'code': self.sitemap_code,
                     'headline': numpy.nan,
                     'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                     'last_modified': child.find(tags[0] + "lastmod").text,
-                    'url': test_link
+                    'url': retrieved_url
                 }
 
-                self.rowlist[test_link] = row
-
+                self.rowlist[retrieved_url] = row
                 i += 1
-                # print(per_month, ' no')
-                per_month += 1
 
         t10 = time.time()
         new_rows = pd.DataFrame(self.rowlist.values())
@@ -149,15 +135,14 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
         n_downloaded = 0
-        proxy_list = self.get_proxies()
-
         for row in news_file_unprocessed.itertuples():
             if n_downloaded % 10 == 0:
-                print("%d/%d" %(n_downloaded, headline_count))
+                print("%d/%d" % (n_downloaded, headline_count))
+            headline = (row.url).split('/')[-1]
+            headline_parts = headline.split('-')
 
-            soup_data = self.__site_crawler__(row.url, proxy_list)
-            print('====================================================')
-            news_file_unprocessed.loc[row.Index, "headline"] = soup_data.find('title').text
+            h = lambda h_list: " ".join(h_list)
+            news_file_unprocessed.loc[row.Index, "headline"] = h(headline_parts)
             n_downloaded += 1
             if n_downloaded == headline_count:
                 break
