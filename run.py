@@ -2,6 +2,8 @@ import argparse
 import os
 
 from news_headline_sentiment import news_scrape
+from news_headline_sentiment import news_scrape_bloomberg
+
 
 """
 parser = argparse.ArgumentParser(
@@ -35,8 +37,15 @@ if args.ws is None:
     exit()
 
 scrape_obj = news_scrape.NewsScraper(args.ws)
+bb_obj = news_scrape_bloomberg.NewsScrapeBloomberg()
 
 if args.ds:
-    scrape_obj.url_getall(args.ds)
+    if args.ws == 'apnews':
+        scrape_obj.url_getall(args.ds)
+    elif args.ws == 'bb':
+        bb_obj.url_getall(args.ds)
 elif args.dl:
-    scrape_obj.download_headlines(args.dl)
+    if args.ws == 'apnews':
+        scrape_obj.download_headlines(args.dl)
+    elif args.ws == 'bb':
+        bb_obj.download_headlines(args.dl)

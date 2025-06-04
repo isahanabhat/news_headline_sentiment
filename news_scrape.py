@@ -146,6 +146,7 @@ class NewsScraper:
         return json_data['headline']
 
     def download_headlines(self, headline_count):
+        print('apnews here')
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)

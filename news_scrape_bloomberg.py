@@ -62,7 +62,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 cur_year -= 1
         return month_url
 
-    def __http_get__(self, url):
+    """def __http_get__(self, url):
         self.__session_creator__()
         print("proxy count = ", len(self.proxy_list))
         for proxy in self.proxy_list:
@@ -82,9 +82,9 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 print(str(e))
                 print("Failed for page:", url, " with proxy ", proxy)
         print("Ran out of proxies")
-
+    """
     def __beautiful_soup_from_site__(self, article_url, proxies):
-        article_data = self.__http_get__(article_url, proxies)
+        article_data = self.__http_get__(article_url)
         t3 = time.time()
         soup_data = BeautifulSoup(article_data, 'html.parser')
         return soup_data
@@ -127,6 +127,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_data.to_csv(self.filepath, index=False)
 
     def download_headlines(self, headline_count):
+        print('bloomberg here')
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
@@ -134,17 +135,22 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
+
+        unprocessed_bb = news_file_unprocessed.loc[news_file['code'] == 'bb']
+        unprocessed_remaining = news_file_unprocessed.loc[news_file['code'] != 'bb']
+        print(unprocessed_bb)
         n_downloaded = 0
-        for row in news_file_unprocessed.itertuples():
+        for row in unprocessed_bb.itertuples():
             if n_downloaded % 10 == 0:
                 print("%d/%d" % (n_downloaded, headline_count))
             headline = (row.url).split('/')[-1]
             headline_parts = headline.split('-')
 
             h = lambda h_list: " ".join(h_list)
-            news_file_unprocessed.loc[row.Index, "headline"] = h(headline_parts)
+            unprocessed_bb.loc[row.Index, "headline"] = h(headline_parts)
             n_downloaded += 1
             if n_downloaded == headline_count:
                 break
+        news_file_unprocessed = pd.concat([unprocessed_bb, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
         news_file.to_csv(self.filepath, index=False)
