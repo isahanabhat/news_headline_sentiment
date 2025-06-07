@@ -11,6 +11,7 @@ from datetime import datetime
 import time
 import numpy
 import json
+import traceback
 
 from dateutil import parser
 
@@ -141,12 +142,13 @@ class NewsScraper:
         news_data.to_csv(self.filepath, index=False)
 
     def __retrieve_json_headline__(self, soup_data):
+        print("news_scape func")
         json_str = soup_data.find('script', {'id': 'link-ld-json'}).text[1:-1]
         json_data = json.loads(json_str)
+        print(json_data['headline'])
         return json_data['headline']
 
     def download_headlines(self, headline_count):
-        print('apnews here')
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
@@ -167,6 +169,8 @@ class NewsScraper:
                 soup_data = self.__beautiful_soup_from_site__(row.url)
                 headline = self.__retrieve_json_headline__(soup_data)
             except Exception as e:
+                print("EXCEPTION:", str(e))
+                print(traceback.print_exc())
                 headline = soup_data.find('title').text
 
             unprocessed_ap.loc[row.Index, "headline"] = headline

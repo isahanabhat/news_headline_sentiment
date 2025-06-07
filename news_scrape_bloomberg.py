@@ -83,11 +83,6 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 print("Failed for page:", url, " with proxy ", proxy)
         print("Ran out of proxies")
     """
-    def __beautiful_soup_from_site__(self, article_url, proxies):
-        article_data = self.__http_get__(article_url)
-        t3 = time.time()
-        soup_data = BeautifulSoup(article_data, 'html.parser')
-        return soup_data
 
     def url_getall(self, start_date):
         i = 0
