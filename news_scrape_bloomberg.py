@@ -41,7 +41,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 return False
         return True
 
-    def __retrieve_months_bb__(self, date):
+    def __retrieve_months__(self, date):
         date = parser.parse(date)
         month_url = []
 
@@ -84,45 +84,8 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         print("Ran out of proxies")
     """
 
-    def url_getall(self, start_date):
-        i = 0
-        t0 = time.time()
-        month_url = self.__retrieve_months_bb__(start_date)
-        for month in month_url:
-            print("month = ", month)
-            month_root = self.__inital_sitemap__(month)
-
-            for child in month_root:
-                tags = re.split(r'url', child.tag)
-                element = tags[0] + "loc"
-                t1 = time.time()
-
-                retrieved_url = child.find(element).text
-                t2 = time.time()
-
-                if len(self.saved_data) != 0:
-                    if retrieved_url in self.saved_data.keys():  # change here
-                        i += 1
-                        continue
-                row = {
-                    'code': self.sitemap_code,
-                    'headline': numpy.nan,
-                    'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-                    'last_modified': child.find(tags[0] + "lastmod").text,
-                    'url': retrieved_url
-                }
-
-                self.rowlist[retrieved_url] = row
-                i += 1
-
-        t10 = time.time()
-        new_rows = pd.DataFrame(self.rowlist.values())
-        news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True).sort_values(
-            by='last_modified', ascending=False)
-        news_data.to_csv(self.filepath, index=False)
-
     def download_headlines(self, headline_count):
-        print('bloomberg here')
+        # print('bloomberg here')
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
@@ -133,7 +96,6 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
 
         unprocessed_bb = news_file_unprocessed.loc[news_file['code'] == 'bb']
         unprocessed_remaining = news_file_unprocessed.loc[news_file['code'] != 'bb']
-        print(unprocessed_bb)
         n_downloaded = 0
         for row in unprocessed_bb.itertuples():
             if n_downloaded % 10 == 0:
@@ -143,6 +105,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
 
             h = lambda h_list: " ".join(h_list)
             unprocessed_bb.loc[row.Index, "headline"] = h(headline_parts)
+            # print(h(headline_parts))
             n_downloaded += 1
             if n_downloaded == headline_count:
                 break

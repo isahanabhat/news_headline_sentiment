@@ -70,33 +70,9 @@ class NewsScraper:
         data_tree = ET.ElementTree(ET.fromstring(input))
         return data_tree.getroot()  # root node of sitemap index xml tree
 
-    def __retrieve_months_ap__(self, date):
-        date = parser.parse(date)
-        month_url = []
+    def __retrieve_months__(self, date):
+        pass
 
-        year_boundary = date.year
-        month_boundary = date.month
-        day_boundary = date.day
-        cur_year = datetime.now().year
-        cur_month = datetime.now().month
-        base_url_ap = 'https://apnews.com/ap-sitemap-'
-        while True:
-            if year_boundary == cur_year and month_boundary == cur_month:
-                if len(str(cur_month)) == 2:
-                    month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
-                else:
-                    month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
-                break
-
-            if len(str(cur_month)) == 2:
-                month_url.append(base_url_ap + str(cur_year) + str(cur_month) + '.xml')
-            else:
-                month_url.append(base_url_ap + str(cur_year) + '0' + str(cur_month) + '.xml')
-            cur_month = ((cur_month - 1) % 12)
-            if cur_month == 0:
-                cur_month = 12
-                cur_year -= 1
-        return month_url
 
     def __beautiful_soup_from_site__(self, article_url):
         article_data = self.__http_get__(article_url)
@@ -108,7 +84,7 @@ class NewsScraper:
     def url_getall(self, start_date):
         i = 0
         t0 = time.time()
-        month_url = self.__retrieve_months_ap__(start_date)
+        month_url = self.__retrieve_months__(start_date)
         for month in month_url:
             print("month = ", month)
             month_root = self.__inital_sitemap__(month)
@@ -142,10 +118,8 @@ class NewsScraper:
         news_data.to_csv(self.filepath, index=False)
 
     def __retrieve_json_headline__(self, soup_data):
-        print("news_scape func")
         json_str = soup_data.find('script', {'id': 'link-ld-json'}).text[1:-1]
         json_data = json.loads(json_str)
-        print(json_data['headline'])
         return json_data['headline']
 
     def download_headlines(self, headline_count):
@@ -172,7 +146,7 @@ class NewsScraper:
                 print("EXCEPTION:", str(e))
                 print(traceback.print_exc())
                 headline = soup_data.find('title').text
-
+            # print(headline)
             unprocessed_ap.loc[row.Index, "headline"] = headline
             n_downloaded += 1
             if n_downloaded == headline_count:
@@ -182,6 +156,3 @@ class NewsScraper:
         news_file.to_csv(self.filepath, index=False)
         return
 
-
-if __name__ == '__main__':
-    print()
