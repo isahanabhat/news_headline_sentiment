@@ -24,12 +24,10 @@ class NewsScraper:
 
         self.sitemap_code = sitemap_code
 
-        print("Running...")
-
         # reading existing data from csv
         self.saved_data = {}
         if os.path.exists(self.filepath):
-            file_data = pd.read_csv(self.filepath)
+            file_data = pd.read_csv(self.filepath, dtype='string')
             file_data["url_index"] = file_data["url"]
             self.saved_data = file_data.set_index('url_index').to_dict('index')
 
@@ -101,14 +99,15 @@ class NewsScraper:
                     if retrieved_url in self.saved_data.keys():  # change here
                         i += 1
                         continue
+
+                last_modified = parser.parse(child.find(tags[0] + "lastmod").text)
                 row = {
                     'code': self.sitemap_code,
                     'headline': numpy.nan,
-                    'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-                    'last_modified': child.find(tags[0] + "lastmod").text,
+                    'last_extracted': datetime.today().strftime('%Y-%m-%d'),
+                    'last_modified': last_modified.strftime('%Y-%m-%d'),
                     'url': retrieved_url
                 }
-
                 self.rowlist[retrieved_url] = row
                 i += 1
 
@@ -118,7 +117,7 @@ class NewsScraper:
         news_data.to_csv(self.filepath, index=False)
 
     def __retrieve_json_headline__(self, soup_data):
-        json_str = soup_data.find('script', {'id': 'link-ld-json'}).text[1:-1]
+        json_str = soup_data.find('script', {'id': 'link-ld-json'}).text
         json_data = json.loads(json_str)
         return json_data['headline']
 
@@ -144,7 +143,9 @@ class NewsScraper:
                 headline = self.__retrieve_json_headline__(soup_data)
             except Exception as e:
                 print("EXCEPTION:", str(e))
+                print('------')
                 print(traceback.print_exc())
+                print('------')
                 headline = soup_data.find('title').text
             # print(headline)
             unprocessed_ap.loc[row.Index, "headline"] = headline
@@ -153,6 +154,7 @@ class NewsScraper:
                 break
         news_file_unprocessed =pd.concat([unprocessed_ap, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
+        news_file = news_file.sort_values(by=['headline', 'last_modified', 'code'], ignore_index=True)
         news_file.to_csv(self.filepath, index=False)
         return
 

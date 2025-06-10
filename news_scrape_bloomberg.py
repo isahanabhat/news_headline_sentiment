@@ -111,4 +111,5 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 break
         news_file_unprocessed = pd.concat([unprocessed_bb, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
+        news_file = news_file.sort_values(by=['headline', 'last_modified', 'code'], ignore_index=True)
         news_file.to_csv(self.filepath, index=False)

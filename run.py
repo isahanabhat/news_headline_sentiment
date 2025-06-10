@@ -6,6 +6,14 @@ from news_headline_sentiment import news_scrape_bloomberg
 from news_headline_sentiment import news_scrape_cnbc
 from news_headline_sentiment import news_scrape_apnews
 
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws apnews -ds 2024-01-01
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws apnews -dl 10
+
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -ds 2024-01-01
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -dl 10
+
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws cnbc -ds 2024-01-01
+# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -dl 10
 
 if __name__ == '__main__':
 
@@ -32,21 +40,23 @@ if __name__ == '__main__':
         parser.print_help()
         exit()
 
-    apnews_obj = news_scrape_apnews.NewsScrapeAPNews()
-    bb_obj = news_scrape_bloomberg.NewsScrapeBloomberg()
-    cnbc_obj = news_scrape_cnbc.NewsScrapeCNBC()
-
     if args.ds:
         if args.ws == 'apnews':
+            apnews_obj = news_scrape_apnews.NewsScrapeAPNews()
             apnews_obj.url_getall(args.ds)
         elif args.ws == 'bb':
+            bb_obj = news_scrape_bloomberg.NewsScrapeBloomberg()
             bb_obj.url_getall(args.ds)
         elif args.ws == 'cnbc':
+            cnbc_obj = news_scrape_cnbc.NewsScrapeCNBC()
             cnbc_obj.url_getall(args.ds)
     elif args.dl:
         if args.ws == 'apnews':
+            apnews_obj = news_scrape_apnews.NewsScrapeAPNews()
             apnews_obj.download_headlines(args.dl)
         elif args.ws == 'bb':
+            bb_obj = news_scrape_bloomberg.NewsScrapeBloomberg()
             bb_obj.download_headlines(args.dl)
         elif args.ws == 'cnbc':
+            cnbc_obj = news_scrape_cnbc.NewsScrapeCNBC()
             cnbc_obj.download_headlines(args.dl)

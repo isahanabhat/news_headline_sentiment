@@ -41,7 +41,8 @@ class NewsScrapeCNBC(news_scrape.NewsScraper):
         for child in root:
             tags = re.split(r'url', child.tag)
 
-            url_date = child.find(tags[0] + "lastmod").text
+            url_date = prser.parse(child.find(tags[0] + "lastmod").text)
+            url_date = url_date.strftime('%Y-%m-%d')
             if self.__check_date_cnbc__(start_date, url_date):
                 print("start_date crossed")
                 break
@@ -62,7 +63,7 @@ class NewsScrapeCNBC(news_scrape.NewsScraper):
             row = {
                 'code': self.sitemap_code,
                 'headline': numpy.nan,
-                'last_extracted': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+                'last_extracted': datetime.today().strftime('%Y-%m-%d'),
                 'last_modified': url_date,
                 'url': retrieved_url
             }
