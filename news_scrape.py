@@ -18,16 +18,17 @@ from dateutil import parser
 
 class NewsScraper:
     def __init__(self, sitemap_code):
-        file = r"news_data.csv"
+        self.sitemap_code = sitemap_code
+
+        file = "headlines_data_" + self.sitemap_code + ".csv"
         DATA_PATH = os.getenv('DATA_HOME')
         self.filepath = os.path.join(DATA_PATH, file)
-
-        self.sitemap_code = sitemap_code
 
         # reading existing data from csv
         self.saved_data = {}
         if os.path.exists(self.filepath):
             file_data = pd.read_csv(self.filepath, dtype='string')
+            # file_data['last_modified'] = file_data.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
             file_data["url_index"] = file_data["url"]
             self.saved_data = file_data.set_index('url_index').to_dict('index')
 
@@ -47,6 +48,12 @@ class NewsScraper:
 
         # dictionary for new rows
         self.rowlist = {}
+
+    def __conver_date__(self, date_string):
+        if date_string is None or date_string == "" or pd.isnull(date_string):
+            return np.nan
+        date_string = parser.parse(date_string)
+        return date_string.strftime('%Y-%m-%d')
 
     def __session_creator__(self):
         if self.session_counter >= 50:
@@ -105,7 +112,7 @@ class NewsScraper:
                     'code': self.sitemap_code,
                     'headline': numpy.nan,
                     'last_extracted': datetime.today().strftime('%Y-%m-%d'),
-                    'last_modified': last_modified.strftime('%Y-%m-%d'),
+                    'last_modified': 'dt-'+last_modified.strftime('%Y-%m-%d'),
                     'url': retrieved_url
                 }
                 self.rowlist[retrieved_url] = row
@@ -118,6 +125,8 @@ class NewsScraper:
 
     def __retrieve_json_headline__(self, soup_data):
         json_str = soup_data.find('script', {'id': 'link-ld-json'}).text
+        if json_str[0] == "[" and json_str[-1] == "]":
+            json_str = json_str[1:-1]
         json_data = json.loads(json_str)
         return json_data['headline']
 
@@ -125,6 +134,7 @@ class NewsScraper:
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
+            # news_file['last_modified'] = news_file.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
 
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file.loc[news_file['headline'].isna()]
@@ -135,6 +145,7 @@ class NewsScraper:
 
         n_downloaded = 0
         for row in unprocessed_ap.itertuples():
+
             if n_downloaded % 10 == 0:
                 print("%d/%d" %(n_downloaded, headline_count))
             headline = ''
@@ -142,11 +153,11 @@ class NewsScraper:
                 soup_data = self.__beautiful_soup_from_site__(row.url)
                 headline = self.__retrieve_json_headline__(soup_data)
             except Exception as e:
+                print('================================')
                 print("EXCEPTION:", str(e))
-                print('------')
-                print(traceback.print_exc())
-                print('------')
                 headline = soup_data.find('title').text
+                print(headline)
+                print('================================')
             # print(headline)
             unprocessed_ap.loc[row.Index, "headline"] = headline
             n_downloaded += 1
@@ -154,7 +165,7 @@ class NewsScraper:
                 break
         news_file_unprocessed =pd.concat([unprocessed_ap, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline', 'last_modified', 'code'], ignore_index=True)
+        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
         news_file.to_csv(self.filepath, index=False)
         return
 

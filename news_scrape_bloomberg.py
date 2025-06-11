@@ -89,6 +89,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
+            # news_file['last_modified'] = news_file.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
 
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file[news_file['headline'].isna()]
@@ -100,7 +101,11 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         for row in unprocessed_bb.itertuples():
             if n_downloaded % 10 == 0:
                 print("%d/%d" % (n_downloaded, headline_count))
-            headline = (row.url).split('/')[-1]
+            headline = (row.url).split('/')
+            if headline[-1] == "":
+                headline = headline[-2]
+            else:
+                headline = headline[-1]
             headline_parts = headline.split('-')
 
             h = lambda h_list: " ".join(h_list)
@@ -111,5 +116,5 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 break
         news_file_unprocessed = pd.concat([unprocessed_bb, unprocessed_remaining]).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline', 'last_modified', 'code'], ignore_index=True)
+        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
         news_file.to_csv(self.filepath, index=False)
