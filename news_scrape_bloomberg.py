@@ -95,26 +95,31 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
 
-        unprocessed_bb = news_file_unprocessed.loc[news_file['code'] == 'bb']
-        unprocessed_remaining = news_file_unprocessed.loc[news_file['code'] != 'bb']
-        n_downloaded = 0
-        for row in unprocessed_bb.itertuples():
-            if n_downloaded % 10 == 0:
-                print("%d/%d" % (n_downloaded, headline_count))
-            headline = (row.url).split('/')
-            if headline[-1] == "":
-                headline = headline[-2]
-            else:
-                headline = headline[-1]
-            headline_parts = headline.split('-')
+        unique_dates = news_file_unprocessed['last_modified'].unique()
+        print(unique_dates)
+        unique_dates_group = news_file_unprocessed.groupby('last_modified')
+        news_file_unprocessed = pd.DataFrame()
+        group_list = []
+        for date, group in unique_dates_group:
+            n_downloaded = 0
+            for row in group.itertuples():
+                if n_downloaded % 10 == 0:
+                    print("%d/%d" % (n_downloaded, headline_count))
+                headline = (row.url).split('/')
+                if headline[-1] == "":
+                    headline = headline[-2]
+                else:
+                    headline = headline[-1]
+                headline_parts = headline.split('-')
 
-            h = lambda h_list: " ".join(h_list)
-            unprocessed_bb.loc[row.Index, "headline"] = h(headline_parts)
-            # print(h(headline_parts))
-            n_downloaded += 1
-            if n_downloaded == headline_count:
-                break
-        news_file_unprocessed = pd.concat([unprocessed_bb, unprocessed_remaining]).sort_index()
+                h = lambda h_list: " ".join(h_list)
+                group.loc[row.Index, "headline"] = h(headline_parts)
+                # print(h(headline_parts))
+                n_downloaded += 1
+                if n_downloaded == headline_count:
+                    group_list.append(group)
+                    break
+        news_file_unprocessed = pd.concat(group_list).sort_index()
         news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
         news_file = news_file.sort_values(by=['headline'], ignore_index=True)
         news_file.to_csv(self.filepath, index=False)

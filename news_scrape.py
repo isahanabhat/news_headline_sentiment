@@ -130,7 +130,7 @@ class NewsScraper:
         json_data = json.loads(json_str)
         return json_data['headline']
 
-    def __save_headlines__(self, df, df_1, df_2):
+    def __save_headlines__(self, df_1, df_2):
         df = pd.concat([df_1, df_2]).sort_index()
         df = df.sort_values(by=['headline'], ignore_index=True)
         df.to_csv(self.filepath, index=False)
@@ -157,6 +157,7 @@ class NewsScraper:
         unique_dates_group = news_file_unprocessed.groupby('last_modified')
         news_file_unprocessed = pd.DataFrame()
         group_list = []
+        total_count = 0
         for date, group in unique_dates_group:
             print(date)
             n_downloaded = 0
@@ -177,14 +178,18 @@ class NewsScraper:
                 group.loc[row.Index, "headline"] = headline
                 # group = group.replace(group.loc[row.Index, "headline"], headline)
                 n_downloaded += 1
+                total_count += 1
                 if n_downloaded == headline_count:
                     group_list.append(group)
+                    news_file_unprocessed = pd.concat(group_list).sort_index()
+                    self.__save_headlines__(news_file_processed, news_file_unprocessed)
                     break
 
         news_file_unprocessed = pd.concat(group_list).sort_index()
-        news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
+        """news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
         news_file = news_file.sort_values(by=['headline'], ignore_index=True)
-        news_file.to_csv(self.filepath, index=False)
+        news_file.to_csv(self.filepath, index=False)"""
+        self.__save_headlines__(news_file_processed, news_file_unprocessed)
         return
         """
         for row in news_file_unprocessed.itertuples():

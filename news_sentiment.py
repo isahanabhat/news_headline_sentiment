@@ -9,6 +9,8 @@ import pandas as pd
 from functools import reduce
 import os
 import matplotlib.pyplot as plt
+from textblob.en import sentiment
+
 
 def get_sentiment_vader(sentence_list):
     # nltk.download('vader_lexicon')
@@ -34,7 +36,7 @@ def get_sentiment_textblob(sentence_list):
     return result
 
 def get_sentiment_spacy(sentence_list):
-    spacy.cli.download("en_core_web_sm")
+    # spacy.cli.download("en_core_web_sm")
     nlp = spacy.load('en_core_web_sm')
     nlp.add_pipe('spacytextblob')
     result = {'date': [], 'polarity_spacy': [], 'subjectivity_spacy': []}
@@ -65,18 +67,24 @@ for code in file_codes:
 
 dates = list(data_list[0].keys())
 
+"""print(data_list[0].keys())
+print(data_list[1].keys())"""
+# print(data_list[2].keys())
+
 sentence_list = {}
 for i in dates:
-    sentence = ''
-    sentence += data_list[0][i]
-    sentence += data_list[1][i]
-    sentence += data_list[2][i]
+    try:
+        sentence = ''
+        sentence += data_list[0][i]
+        sentence += data_list[1][i]
+        sentence += data_list[2][i]
+    except Exception as e:
+        print(str(e))
     sentence_list[i] = sentence
 
 result_vader = get_sentiment_vader(sentence_list)
 result_textblob = get_sentiment_textblob(sentence_list)
 result_spacy = get_sentiment_spacy(sentence_list)
-print(result_spacy)
 
 vader_df = pd.DataFrame.from_dict(result_vader)
 textblob_df = pd.DataFrame.from_dict(result_textblob)
@@ -89,10 +97,32 @@ sentiment_df = reduce(lambda left, right: pd.merge(left, right, on='date', how='
 sentiment_df['date'] = pd.to_datetime(sentiment_df['date'], dayfirst=False)
 sentiment_df = sentiment_df.sort_values(by='date')
 
-print(sentiment_df['date'])
+# print(sentiment_df['date'])
 sentiment_file = r"sentiment_score.csv"
 sentiment_filepath = os.path.join(DATA_PATH, sentiment_file)
 sentiment_df.to_csv(sentiment_filepath, index=False)
+sent_columns = sentiment_df.columns
+# sentiment_df.plot(x='date', y='compound_vader')
+# plt.show()
+print(sent_columns)
 
-"""sentiment_df.plot(x='date', y='compound_vader')
-plt.show()"""
+figure, axs = plt.subplots(3, 1)
+axs[0].plot(sentiment_df['date'], sentiment_df['pos_vader'], label='Positive', color='green')
+axs[0].plot(sentiment_df['date'], sentiment_df['neu_vader'], label='Neutral', color='blue')
+axs[0].plot(sentiment_df['date'], sentiment_df['neg_vader'], label='Negative', color='red')
+axs[0].plot(sentiment_df['date'], sentiment_df['compound_vader'], label='Compound', color='black', linestyle='--')
+axs[0].set_title('VADER')
+axs[0].legend()
+
+axs[1].plot(sentiment_df['date'], sentiment_df['polarity_tb'], label='Polarity', color='purple')
+axs[1].plot(sentiment_df['date'], sentiment_df['subjectivity_tb'], label='Subjectivity', color='orange')
+axs[1].set_title('TextBlob')
+axs[1].legend()
+
+axs[2].plot(sentiment_df['date'], sentiment_df['polarity_spacy'], label='Polarity', color='brown')
+axs[2].plot(sentiment_df['date'], sentiment_df['subjectivity_spacy'], label='Subjectivity', color='cyan')
+axs[2].set_title('spaCY')
+axs[2].legend()
+
+# sentiment_df.plot(title='sentiment', x='date', y=sent_columns[1:])
+plt.show()
