@@ -1,5 +1,4 @@
 import os
-from encodings.idna import sace_prefix
 import requests
 import re
 import xml.etree.ElementTree as ET
@@ -10,7 +9,6 @@ from datetime import datetime
 import time
 import numpy
 from dateutil import parser
-from lxml.html import fromstring
 import json
 
 from news_headline_sentiment import news_scrape
@@ -48,4 +46,3 @@ class NewsScrapeAPNews(news_scrape.NewsScraper):
                 cur_month = 12
                 cur_year -= 1
         return month_url
-

@@ -1,5 +1,4 @@
 import os
-from encodings.idna import sace_prefix
 
 import requests
 import re
@@ -11,7 +10,6 @@ from datetime import datetime
 import time
 import numpy
 import json
-import traceback
 
 from dateutil import parser
 
@@ -64,10 +62,14 @@ class NewsScraper:
             self.session = requests.session()
 
     def __http_get__(self, url):
-        self.__session_creator__()
-        data = self.session.get(url, headers=self.HEADERS)
-        self.session_counter += 1
-        return data.content
+        try:
+            self.__session_creator__()
+            data = self.session.get(url, headers=self.HEADERS)
+            self.session_counter += 1
+            return data.content
+        except Exception as e:
+            print(str(e))
+            return None
 
     def __inital_sitemap__(self, sitemap_url):
         data = self.__http_get__(sitemap_url)
@@ -88,19 +90,15 @@ class NewsScraper:
 
     def url_getall(self, start_date):
         i = 0
-        t0 = time.time()
         month_url = self.__retrieve_months__(start_date)
         for month in month_url:
-            print("month = ", month)
             month_root = self.__inital_sitemap__(month)
-
+            t0 = time.time()
             for child in month_root:
                 tags = re.split(r'url', child.tag)
                 element = tags[0] + "loc"
-                t1 = time.time()
 
                 retrieved_url = child.find(element).text
-                t2 = time.time()
 
                 if len(self.saved_data) != 0:
                     if retrieved_url in self.saved_data.keys():  # change here
@@ -117,8 +115,11 @@ class NewsScraper:
                 }
                 self.rowlist[retrieved_url] = row
                 i += 1
+            t1 = time.time()
+            print("month retrieved = ", month)
+            print("time take = ", t1 - t0)
+            print()
 
-        t10 = time.time()
         new_rows = pd.DataFrame(self.rowlist.values())
         news_data = pd.concat([pd.DataFrame(self.saved_data.values()), new_rows], ignore_index=True).sort_values(by='last_modified', ascending=False)
         news_data.to_csv(self.filepath, index=False)
@@ -134,36 +135,26 @@ class NewsScraper:
         df = pd.concat([df_1, df_2]).sort_index()
         df = df.sort_values(by=['headline'], ignore_index=True)
         df.to_csv(self.filepath, index=False)
-        """news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
-        news_file.to_csv(self.filepath, index=False)"""
 
-    def download_headlines(self, headline_count):
+    def download_headlines(self, to_download):
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
-            # news_file['last_modified'] = news_file.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
 
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file.loc[news_file['headline'].isna()]
         news_file_processed = news_file.loc[~news_file['headline'].isna()]
 
-        # unprocessed_ap = news_file_unprocessed.loc[news_file['code'] == self.sitemap_code]
-        # unprocessed_remaining = news_file_unprocessed.loc[news_file['code'] != self.sitemap_code]
-
-
         unique_dates = news_file_unprocessed['last_modified'].unique()
-        # print(unique_dates)
         unique_dates_group = news_file_unprocessed.groupby('last_modified')
         news_file_unprocessed = pd.DataFrame()
         group_list = []
         total_count = 0
         for date, group in unique_dates_group:
-            print(date)
             n_downloaded = 0
             for row in group.itertuples():
                 if n_downloaded % 10 == 0:
-                    print("%d/%d" % (n_downloaded, headline_count))
+                    print(date, ": %d/%d" % (n_downloaded, to_download))
                 headline = ''
                 try:
                     soup_data = self.__beautiful_soup_from_site__(row.url)
@@ -174,46 +165,15 @@ class NewsScraper:
                     headline = soup_data.find('title').text
                     print(headline)
                     print('================================')
-                # print(headline)
                 group.loc[row.Index, "headline"] = headline
-                # group = group.replace(group.loc[row.Index, "headline"], headline)
                 n_downloaded += 1
                 total_count += 1
-                if n_downloaded == headline_count:
+                if n_downloaded == to_download:
                     group_list.append(group)
                     news_file_unprocessed = pd.concat(group_list).sort_index()
                     self.__save_headlines__(news_file_processed, news_file_unprocessed)
                     break
 
         news_file_unprocessed = pd.concat(group_list).sort_index()
-        """news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
-        news_file.to_csv(self.filepath, index=False)"""
         self.__save_headlines__(news_file_processed, news_file_unprocessed)
         return
-        """
-        for row in news_file_unprocessed.itertuples():
-
-            if n_downloaded % 10 == 0:
-                print("%d/%d" %(n_downloaded, headline_count))
-            headline = ''
-            try:
-                soup_data = self.__beautiful_soup_from_site__(row.url)
-                headline = self.__retrieve_json_headline__(soup_data)
-            except Exception as e:
-                print('================================')
-                print("EXCEPTION:", str(e))
-                headline = soup_data.find('title').text
-                print(headline)
-                print('================================')
-            # print(headline)
-            news_file_unprocessed.loc[row.Index, "headline"] = headline
-            n_downloaded += 1
-            if n_downloaded == headline_count:
-                break
-        # news_file_unprocessed =pd.concat([unprocessed_ap, unprocessed_remaining]).sort_index()
-        news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
-        news_file.to_csv(self.filepath, index=False)
-        return
-        """

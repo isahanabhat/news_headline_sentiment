@@ -1,5 +1,4 @@
 import os
-from encodings.idna import sace_prefix
 import requests
 import re
 import xml.etree.ElementTree as ET
@@ -62,41 +61,18 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 cur_year -= 1
         return month_url
 
-    """def __http_get__(self, url):
-        self.__session_creator__()
-        print("proxy count = ", len(self.proxy_list))
-        for proxy in self.proxy_list:
-            proxies = {
-                'http': proxy,
-                'https': proxy,
-            }
-            try:
-                data = self.session.get(url, headers=self.HEADERS, proxies=proxies, verify=False)
-                if data.find('title').text == 'Bloomberg - Are you a robot?':
-                    print("Captcha encountered")
-                else:
-                    self.session_counter += 1
-                    print("GET success!")
-                    return data.content
-            except Exception as e:
-                print(str(e))
-                print("Failed for page:", url, " with proxy ", proxy)
-        print("Ran out of proxies")
-    """
 
-    def download_headlines(self, headline_count):
-        # print('bloomberg here')
+    def download_headlines(self, to_download):
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
-            # news_file['last_modified'] = news_file.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
 
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
 
         unique_dates = news_file_unprocessed['last_modified'].unique()
-        print(unique_dates)
+
         unique_dates_group = news_file_unprocessed.groupby('last_modified')
         news_file_unprocessed = pd.DataFrame()
         group_list = []
@@ -104,22 +80,21 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
             n_downloaded = 0
             for row in group.itertuples():
                 if n_downloaded % 10 == 0:
-                    print("%d/%d" % (n_downloaded, headline_count))
+                    print(date, ": %d/%d" % (n_downloaded, to_download))
                 headline = (row.url).split('/')
                 if headline[-1] == "":
                     headline = headline[-2]
                 else:
                     headline = headline[-1]
                 headline_parts = headline.split('-')
-
                 h = lambda h_list: " ".join(h_list)
                 group.loc[row.Index, "headline"] = h(headline_parts)
-                # print(h(headline_parts))
                 n_downloaded += 1
-                if n_downloaded == headline_count:
+                if n_downloaded == to_download:
                     group_list.append(group)
+                    news_file_unprocessed = pd.concat(group_list).sort_index()
+                    self.__save_headlines__(news_file_processed, news_file_unprocessed)
                     break
         news_file_unprocessed = pd.concat(group_list).sort_index()
-        news_file = pd.concat([news_file_processed, news_file_unprocessed]).sort_index()
-        news_file = news_file.sort_values(by=['headline'], ignore_index=True)
-        news_file.to_csv(self.filepath, index=False)
+        self.__save_headlines__(news_file_processed, news_file_unprocessed)
+        return
