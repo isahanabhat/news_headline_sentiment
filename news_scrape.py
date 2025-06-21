@@ -152,6 +152,7 @@ class NewsScraper:
         total_count = 0
         for date, group in unique_dates_group:
             n_downloaded = 0
+            total_count = len(group)
             for row in group.itertuples():
                 if n_downloaded % 10 == 0:
                     print(date, ": %d/%d" % (n_downloaded, to_download))
@@ -167,12 +168,19 @@ class NewsScraper:
                     print('================================')
                 group.loc[row.Index, "headline"] = headline
                 n_downloaded += 1
-                total_count += 1
+                total_count -= 1
                 if n_downloaded == to_download:
+                    print('saving')
                     group_list.append(group)
                     news_file_unprocessed = pd.concat(group_list).sort_index()
                     self.__save_headlines__(news_file_processed, news_file_unprocessed)
                     break
+                if total_count == 0:
+                    print('saving')
+                    group_list.append(group)
+                    news_file_unprocessed = pd.concat(group_list).sort_index()
+                    self.__save_headlines__(news_file_processed, news_file_unprocessed)
+                    print()
 
         news_file_unprocessed = pd.concat(group_list).sort_index()
         self.__save_headlines__(news_file_processed, news_file_unprocessed)

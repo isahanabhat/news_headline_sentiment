@@ -71,12 +71,15 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
 
-        unique_dates = news_file_unprocessed['last_modified'].unique()
+        # unique_dates = news_file_unprocessed['last_modified'].unique()
 
         unique_dates_group = news_file_unprocessed.groupby('last_modified')
         news_file_unprocessed = pd.DataFrame()
         group_list = []
+        flag = False
         for date, group in unique_dates_group:
+            total_count = len(group)
+            news_file_unprocessed = pd.DataFrame()
             n_downloaded = 0
             for row in group.itertuples():
                 if n_downloaded % 10 == 0:
@@ -90,11 +93,20 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
                 h = lambda h_list: " ".join(h_list)
                 group.loc[row.Index, "headline"] = h(headline_parts)
                 n_downloaded += 1
+                total_count -= 1
                 if n_downloaded == to_download:
+                    print('saving')
                     group_list.append(group)
                     news_file_unprocessed = pd.concat(group_list).sort_index()
                     self.__save_headlines__(news_file_processed, news_file_unprocessed)
+                    print()
                     break
-        news_file_unprocessed = pd.concat(group_list).sort_index()
-        self.__save_headlines__(news_file_processed, news_file_unprocessed)
+                if total_count == 0:
+                    print('saving')
+                    group_list.append(group)
+                    news_file_unprocessed = pd.concat(group_list).sort_index()
+                    self.__save_headlines__(news_file_processed, news_file_unprocessed)
+                    print()
+        """news_file_unprocessed = pd.concat(group_list).sort_index()
+        self.__save_headlines__(news_file_processed, news_file_unprocessed)"""
         return

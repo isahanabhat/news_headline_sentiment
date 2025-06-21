@@ -1,3 +1,6 @@
+import time
+from operator import index
+
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 from textblob import TextBlob
@@ -47,17 +50,60 @@ def get_sentiment_spacy(sentence_list):
         result['subjectivity_spacy'].append(doc._.blob.subjectivity )
     return result
 
-file_codes = ['apnews', 'bb', 'cnbc']
+file_codes = ['apnews', 'bb']
 data_list = []
+analyzer = SentimentIntensityAnalyzer()
+rows = []
+df = {}
 for code in file_codes:
     file = "headlines_data_" + code + ".csv"
-    # file = r"news_data.csv"
+    temp = code + "_temp.csv"
+    score = "news_score.csv"
+
     DATA_PATH = os.getenv('DATA_HOME')
     filepath = os.path.join(DATA_PATH, file)
-    test_data = pd.read_csv(filepath)
+    temp_path = os.path.join(DATA_PATH, temp)
+    score_path = os.path.join(DATA_PATH, score)
 
+    test_data = pd.read_csv(filepath)
+    # print("1",len(test_data['last_modified'].unique()))
     test_data = test_data.dropna(subset=['headline'])
+    # print("2",len(test_data['last_modified'].unique()))
+
+    t1 = time.time()
+    test_data['sentiment_score'] = test_data.apply(lambda row : analyzer.polarity_scores(row['headline'])['compound'], axis=1)
+    test_data['sentiment_type'] = test_data.apply(lambda row : 'pos' if row['sentiment_score'] > 0 else 'neg', axis=1)
+    test_data['sentiment_type'] = test_data.apply(lambda row: 0 if row['sentiment_score'] == 0 else row['sentiment_type'], axis=1)
+    print(time.time() - t1)
+    test_data.to_csv(temp_path)
     test_data_groups = test_data.groupby('last_modified')
+
+    news_val = []
+    for key, group in test_data_groups:
+        x = group.sentiment_type.value_counts()
+        news_val.append(x['pos']/sum(list(x)))
+    df[code] = news_val
+
+    if code == 'bb':
+        days = list(test_data['last_modified'].unique())
+        days.reverse()
+        df['date'] = days
+
+# print(df)
+pos_df = pd.DataFrame(df, columns=['date', 'apnews', 'bb'])
+pos_df.to_csv(score_path, index=False)
+
+figure, axs = plt.subplots(2, 1)
+
+axs[0].plot(pos_df['date'], pos_df['apnews'], label='Compound', color='black', linestyle='--')
+axs[0].set_title('AP News')
+
+axs[1].plot(pos_df['date'], pos_df['bb'], label='Compound', color='black', linestyle='--')
+axs[1].set_title('BloomBerg')
+
+plt.show()
+# gb = test_data_groups.groups
+"""
     gb = test_data_groups.groups
     headlines = {}
     for key, value in gb.items():
@@ -67,9 +113,6 @@ for code in file_codes:
 
 dates = list(data_list[0].keys())
 
-"""print(data_list[0].keys())
-print(data_list[1].keys())"""
-# print(data_list[2].keys())
 
 sentence_list = {}
 for i in dates:
@@ -125,4 +168,4 @@ axs[2].set_title('spaCY')
 axs[2].legend()
 
 # sentiment_df.plot(title='sentiment', x='date', y=sent_columns[1:])
-plt.show()
+plt.show()"""
