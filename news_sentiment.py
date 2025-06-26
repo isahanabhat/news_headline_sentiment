@@ -1,5 +1,4 @@
 import time
-from operator import index
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
@@ -7,9 +6,12 @@ from textblob import TextBlob
 import spacy
 import spacy.cli
 from spacytextblob.spacytextblob import SpacyTextBlob
+import torch
+from transformers import pipeline
 
+from datetime import datetime
 import pandas as pd
-from functools import reduce
+# from functools import reduce
 import os
 import matplotlib.pyplot as plt
 from textblob.en import sentiment
@@ -50,9 +52,14 @@ def get_sentiment_spacy(sentence_list):
         result['subjectivity_spacy'].append(doc._.blob.subjectivity )
     return result
 
+
 file_codes = ['apnews', 'bb']
 data_list = []
 analyzer = SentimentIntensityAnalyzer()
+# sentiment_pipeline = pipeline(model="finiteautomata/bertweet-base-sentiment-analysis")
+sentiment_pipeline = pipeline("sentiment-analysis")
+
+
 rows = []
 df = {}
 for code in file_codes:
@@ -68,40 +75,65 @@ for code in file_codes:
     test_data = pd.read_csv(filepath)
     # print("1",len(test_data['last_modified'].unique()))
     test_data = test_data.dropna(subset=['headline'])
-    # print("2",len(test_data['last_modified'].unique()))
+    # test_data = test_data.sample(n=500)
 
     t1 = time.time()
+    # vader
     test_data['sentiment_score'] = test_data.apply(lambda row : analyzer.polarity_scores(row['headline'])['compound'], axis=1)
     test_data['sentiment_type'] = test_data.apply(lambda row : 'pos' if row['sentiment_score'] > 0 else 'neg', axis=1)
     test_data['sentiment_type'] = test_data.apply(lambda row: 0 if row['sentiment_score'] == 0 else row['sentiment_type'], axis=1)
-    print(time.time() - t1)
+    print("hello - 1")
+
+    # hugging face
+    test_data['hf_score'] = test_data.apply(lambda row: sentiment_pipeline(row['headline'])[0]['score'], axis=1)
+    test_data['hf_type'] = test_data.apply(lambda row: sentiment_pipeline(row['headline'])[0]['label'], axis=1)
+    # test_data['hf_score'] = test_data.apply(sentiment_pipeline(test_data['headline'].tolist()), axis=1)
+    # print(test_data.shape)
+    # x = sentiment_pipeline(test_data['headline'].tolist())
+    t2 = time.time()
+    print('time taken = ', t2 - t1)
+
     test_data.to_csv(temp_path)
     test_data_groups = test_data.groupby('last_modified')
 
     news_val = []
     for key, group in test_data_groups:
         x = group.sentiment_type.value_counts()
-        news_val.append(x['pos']/sum(list(x)))
+        if 'pos' not in x:
+            news_val.append(0)
+        else:
+            news_val.append(x['pos']/sum(list(x)))
     df[code] = news_val
+    print(code, " length = ", len(news_val))
 
     if code == 'bb':
         days = list(test_data['last_modified'].unique())
-        days.reverse()
+        days = [datetime.strptime(i[3:], "%Y-%m-%d").date() for i in days]
+        days = sorted(days)
+        # days.reverse()
         df['date'] = days
+        # print(df['date'])
 
 # print(df)
+
 pos_df = pd.DataFrame(df, columns=['date', 'apnews', 'bb'])
+# pos_df = pos_df.sort_values(by='date')
 pos_df.to_csv(score_path, index=False)
 
-figure, axs = plt.subplots(2, 1)
-
-axs[0].plot(pos_df['date'], pos_df['apnews'], label='Compound', color='black', linestyle='--')
-axs[0].set_title('AP News')
-
-axs[1].plot(pos_df['date'], pos_df['bb'], label='Compound', color='black', linestyle='--')
-axs[1].set_title('BloomBerg')
-
+plt.plot(pos_df['date'], pos_df['apnews'], label='APNews', color='blue', linestyle='--')
+plt.plot(pos_df['date'], pos_df['bb'], label='BloomBerg', color='red', linestyle='--')
+plt.legend()
 plt.show()
+# figure, axs = plt.subplots(1, 1)
+
+
+# axs[0].plot(pos_df['date'], pos_df['apnews'], label='Compound', color='blue', linestyle='--')
+# axs[0].plot(pos_df['date'], pos_df['bb'], label='Compound', color='red', linestyle='--')
+# axs[0].set_title('Graph plot')
+
+# axs[].set_title('BloomBerg')
+
+
 # gb = test_data_groups.groups
 """
     gb = test_data_groups.groups
