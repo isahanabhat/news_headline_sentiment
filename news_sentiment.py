@@ -93,7 +93,7 @@ for code in file_codes:
     t2 = time.time()
     print('time taken = ', t2 - t1)
 
-    test_data.to_csv(temp_path)
+    test_data.to_csv(temp_path, index=False)
     test_data_groups = test_data.groupby('last_modified')
 
     news_val = []
