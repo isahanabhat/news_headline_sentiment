@@ -119,7 +119,7 @@ for code in file_codes:
 pos_df = pd.DataFrame(df, columns=['date', 'apnews', 'bb'])
 # pos_df = pos_df.sort_values(by='date')
 pos_df.to_csv(score_path, index=False)
-
+print('hello')
 plt.plot(pos_df['date'], pos_df['apnews'], label='APNews', color='blue', linestyle='--')
 plt.plot(pos_df['date'], pos_df['bb'], label='BloomBerg', color='red', linestyle='--')
 plt.legend()
