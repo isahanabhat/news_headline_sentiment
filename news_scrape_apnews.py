@@ -20,6 +20,8 @@ class NewsScrapeAPNews(news_scrape.NewsScraper):
         print("News Scraper (AP News)")
 
     def __retrieve_months__(self, date):
+        # APNews stores news articles by month in its sitemap
+        # retrieve the month to be downloaded till, then
         date = parser.parse(date)
         month_url = []
 
@@ -46,3 +48,6 @@ class NewsScrapeAPNews(news_scrape.NewsScraper):
                 cur_month = 12
                 cur_year -= 1
         return month_url
+
+if __name__ == '__main__':
+    print("APNews")

@@ -16,6 +16,8 @@ from news_headline_sentiment import news_scrape
 class NewsScrapeCNBC(news_scrape.NewsScraper):
     def __init__(self):
         news_scrape.NewsScraper.__init__(self, 'cnbc')
+
+        # CNBCsitemapAll12 has articles until 2023-09-11
         self.cnbc_sitemap = 'https://www.cnbc.com/CNBCsitemapAll12.xml' # subject to change
         print("News Scraper (CNBC)")
 
@@ -32,6 +34,9 @@ class NewsScrapeCNBC(news_scrape.NewsScraper):
         return start_date > url_date
 
     def url_getall(self, start_date):
+        # CNBC groups all its articles and doesn't store by date
+        # iterate 12th group, and stop when start date is reached
+
         t0 = time.time()
         root = self.__inital_sitemap__(self.cnbc_sitemap)
 
@@ -71,3 +76,6 @@ class NewsScrapeCNBC(news_scrape.NewsScraper):
         json_data = json.loads(json_str)
         # print("headline = ", json_data['headline'])
         return json_data['headline']
+
+if __name__ == '__main__':
+    print("CNBC")

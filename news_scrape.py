@@ -26,7 +26,6 @@ class NewsScraper:
         self.saved_data = {}
         if os.path.exists(self.filepath):
             file_data = pd.read_csv(self.filepath, dtype=str)
-            # file_data['last_modified'] = file_data.apply(lambda row: self.__conver_date__(row['last_modified']), axis=1)
             file_data["url_index"] = file_data["url"]
             self.saved_data = file_data.set_index('url_index').to_dict('index')
 
@@ -48,12 +47,14 @@ class NewsScraper:
         self.rowlist = {}
 
     def __conver_date__(self, date_string):
+        # convert the date string to YYYY-mm-dd
         if date_string is None or date_string == "" or pd.isnull(date_string):
             return np.nan
         date_string = parser.parse(date_string)
         return date_string.strftime('%Y-%m-%d')
 
     def __session_creator__(self):
+        # limit the retrievals to 50 per session, then create a new session object
         if self.session_counter >= 50:
             self.session.close()
             self.session_counter = 0
@@ -64,7 +65,7 @@ class NewsScraper:
     def __http_get__(self, url):
         try:
             self.__session_creator__()
-            data = self.session.get(url, headers=self.HEADERS)
+            data = self.session.get(url, headers=self.HEADERS) # retrieve the page source of url
             self.session_counter += 1
             return data.content
         except Exception as e:
@@ -89,20 +90,20 @@ class NewsScraper:
 
 
     def url_getall(self, start_date):
-        i = 0
         month_url = self.__retrieve_months__(start_date)
         for month in month_url:
-            month_root = self.__inital_sitemap__(month)
+            month_root = self.__inital_sitemap__(month) # retrieve sitemap root
             t0 = time.time()
             for child in month_root:
+                # split the current element of the tree to retrieve url part,
+                # concatenate with "loc", and then find the url with this string
                 tags = re.split(r'url', child.tag)
                 element = tags[0] + "loc"
-
                 retrieved_url = child.find(element).text
 
+                # ensure that the url isn't already retrieved
                 if len(self.saved_data) != 0:
-                    if retrieved_url in self.saved_data.keys():  # change here
-                        i += 1
+                    if retrieved_url in self.saved_data.keys():
                         continue
 
                 last_modified = parser.parse(child.find(tags[0] + "lastmod").text)
@@ -114,7 +115,6 @@ class NewsScraper:
                     'url': retrieved_url
                 }
                 self.rowlist[retrieved_url] = row
-                i += 1
             t1 = time.time()
             print("month retrieved = ", month)
             print("time take = ", t1 - t0)
@@ -125,6 +125,7 @@ class NewsScraper:
         news_data.to_csv(self.filepath, index=False)
 
     def __retrieve_json_headline__(self, soup_data):
+        # function to retrieve the headline from the JSON string in the page source <script> content
         json_str = soup_data.find('script', {'id': 'link-ld-json'}).text
         if json_str[0] == "[" and json_str[-1] == "]":
             json_str = json_str[1:-1]
@@ -137,20 +138,25 @@ class NewsScraper:
         df.to_csv(self.filepath, index=False)
 
     def download_headlines(self, to_download):
+        # function retrives a particular number of headlines (to_download) per day
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
 
         news_file = news_file.sort_values(by='headline', na_position='last')
-        news_file_unprocessed = news_file.loc[news_file['headline'].isna()]
-        news_file_processed = news_file.loc[~news_file['headline'].isna()]
+        news_file_unprocessed = news_file.loc[news_file['headline'].isna()] # dataframe of not retrieved headlines
+        news_file_processed = news_file.loc[~news_file['headline'].isna()] # dataframe of retrieved headlines
 
         unique_dates = news_file_unprocessed['last_modified'].unique()
-        unique_dates_group = news_file_unprocessed.groupby('last_modified')
+        unique_dates_group = news_file_unprocessed.groupby('last_modified') # group unprocessed dataframe by date
         news_file_unprocessed = pd.DataFrame()
         group_list = []
         total_count = 0
-        for date, group in unique_dates_group:
+        rev_keys = sorted(unique_dates_group.groups.keys(), reverse=True)
+
+        # download data from last date till the first date of url's in dataframe
+        for date in rev_keys:
+            group = unique_dates_group.get_group(date)
             n_downloaded = 0
             total_count = len(group)
             for row in group.itertuples():
@@ -163,12 +169,14 @@ class NewsScraper:
                 except Exception as e:
                     print('================================')
                     print("EXCEPTION:", str(e))
+                    # retrieve headline with find() in case of exception
                     headline = soup_data.find('title').text
-                    print(headline)
                     print('================================')
                 group.loc[row.Index, "headline"] = headline
                 n_downloaded += 1
                 total_count -= 1
+
+                # save the data in dataframe as soon as to_download count has been reached
                 if n_downloaded == to_download:
                     print('saving')
                     group_list.append(group)
@@ -185,3 +193,6 @@ class NewsScraper:
         news_file_unprocessed = pd.concat(group_list).sort_index()
         self.__save_headlines__(news_file_processed, news_file_unprocessed)
         return
+
+if __name__ == '__main__':
+    print()

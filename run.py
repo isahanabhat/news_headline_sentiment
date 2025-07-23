@@ -6,14 +6,6 @@ from news_headline_sentiment import news_scrape_bloomberg
 from news_headline_sentiment import news_scrape_cnbc
 from news_headline_sentiment import news_scrape_apnews
 
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws apnews -ds 2025-06-09
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws apnews -dl 10
-
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -ds 2025-03-01
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -dl 100
-
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws cnbc -ds 2025-03-01
-# python C:\Users\bhats\SAHANABHAT\python_projects\news_headline_sentiment\run.py -ws bb -dl 50
 
 if __name__ == '__main__':
 

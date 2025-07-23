@@ -34,6 +34,7 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         return proxies
 
     def __bloomberg_check__(self, soup_data):
+        # don't consider articles that are games
         tag_data = soup_data.find_all('meta')
         for t in tag_data:
             if t.get('content') == "games":
@@ -41,6 +42,8 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         return True
 
     def __retrieve_months__(self, date):
+        # BloomBerg stores news articles by month in its sitemap
+        # retrieve the month to be downloaded till, then
         date = parser.parse(date)
         month_url = []
 
@@ -63,6 +66,9 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
 
 
     def download_headlines(self, to_download):
+        # BloomBerg has its article title in the url
+        # this function splits the headline to retrieve the url
+
         news_file = pd.DataFrame()
         if os.path.exists(self.filepath):
             news_file = pd.read_csv(self.filepath)
@@ -70,8 +76,6 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         news_file = news_file.sort_values(by='headline', na_position='last')
         news_file_unprocessed = news_file[news_file['headline'].isna()]
         news_file_processed = news_file[~news_file['headline'].isna()]
-
-        # unique_dates = news_file_unprocessed['last_modified'].unique()
 
         unique_dates_group = news_file_unprocessed.groupby('last_modified')
         news_file_unprocessed = pd.DataFrame()
@@ -110,3 +114,6 @@ class NewsScrapeBloomberg(news_scrape.NewsScraper):
         """news_file_unprocessed = pd.concat(group_list).sort_index()
         self.__save_headlines__(news_file_processed, news_file_unprocessed)"""
         return
+
+if __name__ == '__main__':
+    print("BloomBerg")
